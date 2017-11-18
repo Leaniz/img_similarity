@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-import os
+from sklearn.preprocessing import MinMaxScaler
 
 
 CHARACTER_REMOVE = {"á": "a",
@@ -31,7 +31,6 @@ OUT_COLS = ['ID',
             'hasTerrace',
             'price',
             'size_const',
-            'size_plot_clean',
             'status_clean',
             'energy_clean',
             'floor_clean',
@@ -43,7 +42,9 @@ OUT_COLS = ['ID',
             'west',
             'south']
 
-OUTLIER_COLS = ["bathrooms", "price", "rooms", "size_const", "size_plot"]
+OUTLIER_COLS = ["bathrooms", "price", "rooms_clean", "size_const"]
+
+EXCLUDED_COLS = ["ID"]
 
 
 def remove_spanish_chars(s):
@@ -165,8 +166,6 @@ def clean_support_data(file_path, file_name_out=None):
     df["garage_clean"] = df.apply(process_field, axis=1, args=("garage",))
     df["rooms_clean"] = df.apply(process_field, axis=1, args=("rooms",))
     df["status_clean"] = df.apply(process_field, axis=1, args=("status",))
-    df["size_plot_clean"] = df.apply(process_field, axis=1,
-                                     args=("size_plot",))
     df["furniture_clean"] = df.apply(process_field, axis=1,
                                      args=("furniture",))
 
@@ -235,3 +234,15 @@ def remove_outliers(df, verbose=0):
 
     # Remove the outliers, if any were specified
     return df.drop(outliers)
+
+
+def scale_data(df):
+    num_f = list(df.select_dtypes(include=['int64']).columns)
+    num_f = [col for col in num_f if col not in EXCLUDED_COLS]
+    print(num_f)
+
+    for column in num_f:
+        scaler = MinMaxScaler()
+        df[column] = scaler.fit_transform(np.array(df[column]).reshape(-1, 1))
+
+    return df
