@@ -2,53 +2,11 @@ import pandas as pd
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 
-
-CHARACTER_REMOVE = {"á": "a",
-                    "é": "e",
-                    "í": "i",
-                    "ó": "o",
-                    "ú": "u",
-                    "Á": "A",
-                    "É": "E",
-                    "Í": "I",
-                    "Ó": "O",
-                    "Ú": "U",
-                    "ñ": "n",
-                    "Ñ": "N"
-                    }
-
-OUT_COLS = ['ID',
-            'admitsPets',
-            'bathrooms',
-            'district_clean',
-            'exterior',
-            'hasAircon',
-            'hasCupboards',
-            'hasGarden',
-            'hasLift',
-            'hasPool',
-            'hasStorage',
-            'hasTerrace',
-            'price',
-            'size_const',
-            'status_clean',
-            'energy_clean',
-            'floor_clean',
-            'furniture_clean',
-            'garage_clean',
-            'rooms_clean',
-            'north',
-            'east',
-            'west',
-            'south']
-
-OUTLIER_COLS = ["bathrooms", "price", "rooms_clean", "size_const"]
-
-EXCLUDED_COLS = ["ID"]
+import core.const as const
 
 
 def remove_spanish_chars(s):
-    for accent, no_accent in CHARACTER_REMOVE.items():
+    for accent, no_accent in const.CHARACTER_REMOVE.items():
         s = s.replace(accent, no_accent)
 
     return s
@@ -184,9 +142,9 @@ def clean_support_data(file_path, file_name_out=None):
 
     if file_name_out:
         path_out = "/".join(file_path.split("/")[: -1]) + "/"
-        df[OUT_COLS].to_excel(path_out + file_name_out)
+        df[const.OUT_COLS].to_excel(path_out + file_name_out)
 
-    return df[OUT_COLS]
+    return df[const.OUT_COLS]
 
 
 def remove_outliers(df, verbose=0):
@@ -195,7 +153,7 @@ def remove_outliers(df, verbose=0):
     outliers_count = {}
 
     # For each feature find the data points with extreme high or low values
-    for feature in OUTLIER_COLS:
+    for feature in const.OUTLIER_COLS:
 
         # Calculate Q1 (25th percentile of the data) for the given feature
         Q1 = np.percentile(df[feature], 25)
@@ -238,8 +196,7 @@ def remove_outliers(df, verbose=0):
 
 def scale_data(df):
     num_f = list(df.select_dtypes(include=['int64']).columns)
-    num_f = [col for col in num_f if col not in EXCLUDED_COLS]
-    print(num_f)
+    num_f = [col for col in num_f if col not in const.EXCLUDED_COLS]
 
     for column in num_f:
         scaler = MinMaxScaler()
