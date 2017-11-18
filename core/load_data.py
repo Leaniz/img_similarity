@@ -103,7 +103,7 @@ def process_field(row, field):
         if not isinstance(value, str):
             value = "no_garage"
         elif " 0 eur/mes" in value or value == ("Plaza de garaje incluida en "
-                                               "el precio"):
+                                                "el precio"):
             value = "garage_included"
         else:
             value = "garage_extra_cost"
@@ -149,7 +149,7 @@ def get_orientations(orientation):
 
 
 def df_groupby(df, key):
-     return df.groupby(key).size().reset_index().sort_values(key)
+    return df.groupby(key).size().reset_index().sort_values(key)
 
 
 def clean_support_data(file_path, file_name_out=None):
@@ -190,7 +190,48 @@ def clean_support_data(file_path, file_name_out=None):
     return df[OUT_COLS]
 
 
-# data_path = "\\data\\"
-# wd = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + data_path
-# os.chdir(wd)
-# file_name = "supporting_dataset.xlsx"
+def remove_outliers(df, verbose=0):
+    # Dictionary to count the number of times a row has an outlier in a
+    # feature. {Row: count of features with outliers}
+    outliers_count = {}
+
+    # For each feature find the data points with extreme high or low values
+    for feature in OUTLIER_COLS:
+
+        # Calculate Q1 (25th percentile of the data) for the given feature
+        Q1 = np.percentile(df[feature], 25)
+
+        # Calculate Q3 (75th percentile of the data) for the given feature
+        Q3 = np.percentile(df[feature], 75)
+
+        # Use the interquartile range to calculate an outlier step
+        # (1.5 times the interquartile range)
+        step = 1.5 * (Q3 - Q1)
+
+        # Get indexes of records with outliers in 'feature'
+        outliers_row = df[~((df[feature] >= Q1 - step) &
+                            (df[feature] <= Q3 + step))].index.tolist()
+
+        # Display the outliers
+        if verbose:
+            print(("Data points considered outliers for the feature"
+                   " '{0}': {1}").format(feature, len(outliers_row)))
+
+        # Populate dictionary. If the index exists, add one to the count.
+        # Else, initialize with count = 1
+        for row in outliers_row:
+            try:
+                outliers_count[row] = outliers_count[row] + 1
+            except KeyError:
+                outliers_count[row] = 1
+
+    # Create a dataframe with the indexes, then filter by Count > 0
+    df_outliers_count = pd.DataFrame.from_dict(outliers_count, orient='index')
+    df_outliers_count.columns = ['Count']
+    outliers_idx = df_outliers_count[df_outliers_count['Count'] > 0]
+
+    # Select rows with outliers
+    outliers = sorted(outliers_idx.index.tolist())
+
+    # Remove the outliers, if any were specified
+    return df.drop(outliers)
