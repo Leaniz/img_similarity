@@ -1,6 +1,5 @@
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import MinMaxScaler
 
 import core.const as const
 
@@ -14,7 +13,10 @@ def remove_spanish_chars(s):
 
 def process_field(row, field):
 
-    value = row[field]
+    try:
+        value = row[field]
+    except KeyError:
+        value = 0
 
     if field == "energy":
         if "indicado" in value:
@@ -50,22 +52,36 @@ def process_field(row, field):
 
     if field == "furniture":
         if not isinstance(value, str):
-            value = "unknown"
+            value = False
         elif value == "Totalmente amueblado y equipado":
-            value = "kitchen_yes_furniture_yes"
-        elif value == "Cocina equipada y casa sin amueblar":
-            value = "kitchen_yes_furniture_no"
-        elif value == "Cocina sin equipar y casa sin amueblar":
-            value = "kitchen_no_furniture_no"
+            value = True
+        else:
+            value = False
 
     if field == "garage":
         if not isinstance(value, str):
-            value = "no_garage"
+            value = False
         elif " 0 eur/mes" in value or value == ("Plaza de garaje incluida en "
                                                 "el precio"):
-            value = "garage_included"
+            value = True
         else:
-            value = "garage_extra_cost"
+            value = False
+
+    if field == "kitchen":
+        value = row["furniture"]
+        if not isinstance(value, str):
+            value = False
+        elif value == "Totalmente amueblado y equipado":
+            value = True
+        elif value == "Cocina equipada y casa sin amueblar":
+            value = True
+        elif value == "Cocina sin equipar y casa sin amueblar":
+            value = False
+
+    if field == "price_area":
+        price = row["price"]
+        size = row["size_const"]
+        value = price / size
 
     if field == "rooms":
         if value == "Sin":
@@ -126,6 +142,8 @@ def clean_support_data(file_path, file_name_out=None):
     df["status_clean"] = df.apply(process_field, axis=1, args=("status",))
     df["furniture_clean"] = df.apply(process_field, axis=1,
                                      args=("furniture",))
+    df["price_area"] = df.apply(process_field, axis=1, args=("price_area",))
+    df["kitchen"] = df.apply(process_field, axis=1, args=("kitchen",))
 
     orientation_list = df["orientation"].tolist()
     orientations_dict = {"north": [], "east": [], "west": [], "south": []}
@@ -145,61 +163,3 @@ def clean_support_data(file_path, file_name_out=None):
         df[const.OUT_COLS].to_excel(path_out + file_name_out)
 
     return df[const.OUT_COLS]
-
-
-def remove_outliers(df, verbose=0):
-    # Dictionary to count the number of times a row has an outlier in a
-    # feature. {Row: count of features with outliers}
-    outliers_count = {}
-
-    # For each feature find the data points with extreme high or low values
-    for feature in const.OUTLIER_COLS:
-
-        # Calculate Q1 (25th percentile of the data) for the given feature
-        Q1 = np.percentile(df[feature], 25)
-
-        # Calculate Q3 (75th percentile of the data) for the given feature
-        Q3 = np.percentile(df[feature], 75)
-
-        # Use the interquartile range to calculate an outlier step
-        # (1.5 times the interquartile range)
-        step = 1.5 * (Q3 - Q1)
-
-        # Get indexes of records with outliers in 'feature'
-        outliers_row = df[~((df[feature] >= Q1 - step) &
-                            (df[feature] <= Q3 + step))].index.tolist()
-
-        # Display the outliers
-        if verbose:
-            print(("Data points considered outliers for the feature"
-                   " '{0}': {1}").format(feature, len(outliers_row)))
-
-        # Populate dictionary. If the index exists, add one to the count.
-        # Else, initialize with count = 1
-        for row in outliers_row:
-            try:
-                outliers_count[row] = outliers_count[row] + 1
-            except KeyError:
-                outliers_count[row] = 1
-
-    # Create a dataframe with the indexes, then filter by Count > 0
-    df_outliers_count = pd.DataFrame.from_dict(outliers_count, orient='index')
-    df_outliers_count.columns = ['Count']
-    outliers_idx = df_outliers_count[df_outliers_count['Count'] > 0]
-
-    # Select rows with outliers
-    outliers = sorted(outliers_idx.index.tolist())
-
-    # Remove the outliers, if any were specified
-    return df.drop(outliers)
-
-
-def scale_data(df):
-    num_f = list(df.select_dtypes(include=['int64']).columns)
-    num_f = [col for col in num_f if col not in const.EXCLUDED_COLS]
-
-    for column in num_f:
-        scaler = MinMaxScaler()
-        df[column] = scaler.fit_transform(np.array(df[column]).reshape(-1, 1))
-
-    return df

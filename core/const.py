@@ -13,7 +13,7 @@ CHARACTER_REMOVE = {"á": "a",
                     }
 
 OUT_COLS = ['ID',
-            'admitsPets',
+            # 'admitsPets',
             'bathrooms',
             'district_clean',
             'exterior',
@@ -25,20 +25,51 @@ OUT_COLS = ['ID',
             'hasStorage',
             'hasTerrace',
             'price',
+            'price_area',
             'size_const',
-            'status_clean',
-            'energy_clean',
-            'floor_clean',
+            # 'status_clean',
+            # 'energy_clean',
+            # 'floor_clean',
             'furniture_clean',
             'garage_clean',
             'rooms_clean',
             'north',
             'east',
             'west',
-            'south']
+            'south',
+            'kitchen']
+
+IN_COLS = ['ID',
+           # 'admitsPets',
+           'bathrooms',
+           # 'district_clean',
+           'exterior',
+           'hasAircon',
+           'hasCupboards',
+           'hasGarden',
+           'hasLift',
+           'hasPool',
+           'hasStorage',
+           'hasTerrace',
+           'price',
+           # 'price_area',
+           'avg_price_area',
+           'size_const',
+           # 'status_clean',
+           # 'energy_clean',
+           # 'floor_clean',
+           'furniture_clean',
+           'garage_clean',
+           'rooms_clean',
+           'kitchen'
+           # 'north',
+           # 'east',
+           # 'west',
+           # 'south']
+           ]
 
 OUTLIER_COLS = ["bathrooms", "price", "rooms_clean", "size_const"]
 
-EXCLUDED_COLS = ["ID"]
+EXCLUDED_COLS = ["ID", "index"]
 
 RANDOM_STATE = 34093458

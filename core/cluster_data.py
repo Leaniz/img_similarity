@@ -16,21 +16,61 @@ def cluster_support_data(data, n_clusters_list, option="kmeans", verbose=0):
 
     features = [col for col in data.columns if col not in const.EXCLUDED_COLS]
     X = data[features]
-    max_score = 0
+    max_score = 0.
+    random_s = const.RANDOM_STATE
 
     for n_clusters in n_clusters_list:
 
         if option == "kmeans":
             clst = KMeans(n_clusters=n_clusters,
-                          random_state=const.RANDOM_STATE).fit(X)
+                          random_state=random_s).fit(X)
             preds = clst.predict(X)
 
         elif option == "spectral":
             clst = SpectralClustering(n_clusters=n_clusters,
-                                      random_state=const.RANDOM_STATE).fit(X)
+                                      random_state=random_s).fit(X)
             preds = clst.fit_predict(X)
 
-        score = silhouette_score(X, preds, random_state=const.RANDOM_STATE)
+        elif option == "affinity":
+            clst = AffinityPropagation().fit(X)
+            preds = clst.predict(X)
+            n_clusters = len(clst.cluster_centers_indices_)
+
+        elif option == "agglomerative":
+                clst = AgglomerativeClustering(n_clusters=n_clusters).fit(X)
+                preds = clst.fit_predict(X)
+
+        elif option == "birch":
+            clst = Birch(n_clusters=n_clusters).fit(X)
+            preds = clst.fit_predict(X)
+
+        elif option == "dbscan":
+            clst = DBSCAN().fit(X)
+            preds = clst.fit_predict(X)
+            n_clusters = len(set(preds))
+
+        elif option == "featureagg":
+            try:
+                clst = FeatureAgglomeration(n_clusters=n_clusters).fit(X)
+                trans = clst.transform(X)
+                preds = [list(t).index(max(t)) for t in trans]
+            except ValueError:
+                pass
+
+        elif option == "mbkmeans":
+            clst = MiniBatchKMeans(n_clusters=n_clusters,
+                                   random_state=random_s).fit(X)
+            preds = clst.predict(X)
+
+        elif option == "meanshift":
+            clst = MeanShift().fit(X)
+            preds = clst.fit_predict(X)
+            n_clusters = len(set(preds))
+
+        if len(set(preds)) < 2:
+            score = 0.
+        else:
+            score = silhouette_score(X, preds, random_state=random_s)
 
         if verbose:
             print(("Silhouette score of "
@@ -53,3 +93,6 @@ def cluster_support_data(data, n_clusters_list, option="kmeans", verbose=0):
             joblib.dump(clst, model_path)
 
             max_score = score
+
+        if option in ["affinity", "dbscan", "meanshift"]:
+            break
