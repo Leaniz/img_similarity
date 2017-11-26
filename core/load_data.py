@@ -1,5 +1,8 @@
 import pandas as pd
 import numpy as np
+import os
+from keras.preprocessing import image
+from tqdm import tqdm
 
 import core.const as const
 
@@ -78,9 +81,9 @@ def process_field(row, field):
         elif value == "Cocina sin equipar y casa sin amueblar":
             value = False
 
-    if field == "price_area":
+    if field == "price_per_sm":
         price = row["price"]
-        size = row["size_const"]
+        size = row["size"]
         value = price / size
 
     if field == "rooms":
@@ -134,26 +137,28 @@ def clean_support_data(file_path, file_name_out=None):
         return
 
     df = pd.read_excel(file_path)
-    df["energy_clean"] = df.apply(process_field, axis=1, args=("energy",))
-    df["district_clean"] = df.apply(process_field, axis=1, args=("district",))
-    df["floor_clean"] = df.apply(process_field, axis=1, args=("floor",))
-    df["garage_clean"] = df.apply(process_field, axis=1, args=("garage",))
-    df["rooms_clean"] = df.apply(process_field, axis=1, args=("rooms",))
-    df["status_clean"] = df.apply(process_field, axis=1, args=("status",))
-    df["furniture_clean"] = df.apply(process_field, axis=1,
-                                     args=("furniture",))
-    df["price_area"] = df.apply(process_field, axis=1, args=("price_area",))
-    df["kitchen"] = df.apply(process_field, axis=1, args=("kitchen",))
+    df["energy"] = df.apply(process_field, axis=1, args=("energy",))
+    df["district"] = df.apply(process_field, axis=1, args=("district",))
+    df["floor"] = df.apply(process_field, axis=1, args=("floor",))
+    df["hasGarage"] = df.apply(process_field, axis=1, args=("garage",))
+    df["rooms"] = df.apply(process_field, axis=1, args=("rooms",))
+    df["status"] = df.apply(process_field, axis=1, args=("status",))
+    df["hasFurniture"] = df.apply(process_field, axis=1, args=("furniture",))
+    df["price_per_sm"] = df.apply(process_field, axis=1,
+                                  args=("price_per_sm",))
+    df["hasEquippedKitchen"] = df.apply(process_field, axis=1,
+                                        args=("kitchen",))
 
     orientation_list = df["orientation"].tolist()
-    orientations_dict = {"north": [], "east": [], "west": [], "south": []}
+    orientations_dict = {"north_oriented": [], "east_oriented": [],
+                         "west_oriented": [], "south_oriented": []}
 
     for orientation in orientation_list:
         orientations = get_orientations(orientation)
-        orientations_dict["north"].append(orientations[0])
-        orientations_dict["east"].append(orientations[1])
-        orientations_dict["west"].append(orientations[2])
-        orientations_dict["south"].append(orientations[3])
+        orientations_dict["north_oriented"].append(orientations[0])
+        orientations_dict["east_oriented"].append(orientations[1])
+        orientations_dict["west_oriented"].append(orientations[2])
+        orientations_dict["south_oriented"].append(orientations[3])
 
     for key, values in orientations_dict.items():
         df[key] = values
@@ -163,3 +168,38 @@ def clean_support_data(file_path, file_name_out=None):
         df[const.OUT_COLS].to_excel(path_out + file_name_out)
 
     return df[const.OUT_COLS]
+
+
+def path_to_tensor(img_path):
+    # loads RGB image as PIL.Image.Image type
+    img = image.load_img(img_path, target_size=(224, 224))
+    # convert PIL.Image.Image type to 3D tensor with shape (224, 224, 3)
+    x = image.img_to_array(img)
+    # return x
+    return np.expand_dims(x, axis=0)
+
+
+def load_imgs(data_path, model=None, verbose=0):
+    out_imgs = []
+
+    folders = os.listdir(data_path)
+    for folder in tqdm(folders):
+        imgs_path = data_path + "/" + folder
+        imgs = os.listdir(imgs_path)
+        imgs_list = [img for img in imgs if img.endswith(".jpg")]
+        for img in imgs_list:
+            img_path = imgs_path + "/" + img
+            label = img.split("_")[0]
+            try:
+                tensor = path_to_tensor(os.path.abspath(img_path))
+                if model:
+                    tensor = model.predict(tensor)
+                record = [int(folder), label, tensor]
+                out_imgs.append(record)
+            except OSError:
+                if verbose:
+                    print("Picture '{}' is corrupt".format(img_path))
+                else:
+                    pass
+
+    return out_imgs

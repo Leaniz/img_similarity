@@ -18,6 +18,8 @@ def cluster_support_data(data, n_clusters_list, option="kmeans", verbose=0):
     X = data[features]
     max_score = 0.
     random_s = const.RANDOM_STATE
+    centers = None
+    best_model = {}
 
     for n_clusters in n_clusters_list:
 
@@ -25,6 +27,7 @@ def cluster_support_data(data, n_clusters_list, option="kmeans", verbose=0):
             clst = KMeans(n_clusters=n_clusters,
                           random_state=random_s).fit(X)
             preds = clst.predict(X)
+            centers = clst.cluster_centers_
 
         elif option == "spectral":
             clst = SpectralClustering(n_clusters=n_clusters,
@@ -94,5 +97,9 @@ def cluster_support_data(data, n_clusters_list, option="kmeans", verbose=0):
 
             max_score = score
 
+            best_model = {"model": clst, "preds": preds, "centers": centers}
+
         if option in ["affinity", "dbscan", "meanshift"]:
             break
+
+    return best_model

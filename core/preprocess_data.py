@@ -1,6 +1,7 @@
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler, scale
+from sklearn.decomposition import PCA
 import numpy as np
 import pandas as pd
 
@@ -37,21 +38,36 @@ def df_groupby_mean(df, key, value):
     return df.groupby(key)[value].mean()
 
 
-def get_avg_price_area(df):
-    avg_price = df_groupby_mean(df, "district_clean", "price_area").to_dict()
-    df["avg_price_area"] = df.apply(lambda x: avg_price[x["district_clean"]],
-                                    axis=1)
+def calc_dev(row, col1, col2, dict_val):
+    return row[col1] - dict_val[row[col2]]
+
+
+def get_price_per_sm_dev(df):
+    avg_price = df_groupby_mean(df, "district", "price_per_sm").to_dict()
+    df["price_per_sm_dev"] = df.apply(calc_dev, axis=1,
+                                      args=("price_per_sm", "district",
+                                            avg_price))
 
     return df
 
 
-def scale_data(df):
-    num_f = list(df.select_dtypes(include=['int64']).columns)
+def MMscale_data(df):
+    num_f = list(df.select_dtypes(include=["int64", "float64"]).columns)
     num_f = [col for col in num_f if col not in const.EXCLUDED_COLS]
 
     for column in num_f:
         scaler = MinMaxScaler()
         df[column] = scaler.fit_transform(np.array(df[column]).reshape(-1, 1))
+
+    return df
+
+
+def scale_data(df):
+    num_f = list(df.select_dtypes(include=["int64", "float64"]).columns)
+    num_f = [col for col in num_f if col not in const.EXCLUDED_COLS]
+
+    for column in num_f:
+        df[column] = scale(np.array(df[column]).reshape(-1, 1), axis=0)
 
     return df
 
@@ -101,3 +117,13 @@ def remove_outliers(df, verbose=0):
 
     # Remove the outliers, if any were specified
     return df.drop(outliers)
+
+
+def apply_pca(df, components):
+    cols = [col for col in df.columns if col not in const.EXCLUDED_COLS]
+    pca = PCA(n_components=components).fit(df[cols])
+    pca_df = pca.transform(df[cols])
+    pca_cols = ['dimension_{}'.format(c + 1) for c in range(components)]
+    pca_df = pd.DataFrame(pca_df, columns=pca_cols)
+
+    return pca_df
